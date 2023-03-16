@@ -16,9 +16,24 @@ consults$lead_consultant <- factor(consults$lead_consultant,
 consults$complete_bin <- ifelse(consults$complete == "Yes", 1, 0)
 
 # figure 2: missing data -------------------------------------------------------
-
-###Alison's code###
-
+key_vars <- consults%>%dplyr::select(consult_type,consult_location,lead_consultant,consult_end_date, caller_role,caller_service,ethics_meeting_yes_no,speak_to_pt,
+      pt_dmc,pt_surrogate_contact,ad_polst,ethics_issue_primary,total_time_minutes)
+key_vars_renamed <- key_vars %>% rename(`Consult Type`=consult_type,
+                                        Location=consult_location,
+                                        `Lead Consultant`=lead_consultant,
+                                        `End Date`=consult_end_date,
+                                        `Caller Role`=caller_role,
+                                        `Caller Service`=caller_service,
+                                        `Ethics Meeting Held`=ethics_meeting_yes_no,
+                                        `Spoke to Patient`=speak_to_pt,
+                                        `Decision Making Capacity`=pt_dmc,
+                                        `Surrogate Contacted`=pt_surrogate_contact,
+                                        `Advance Directive`=ad_polst,
+                                        `Primary Ethics Issue`=ethics_issue_primary,
+                                        `Total Time Spent`=total_time_minutes)
+gg_miss_var(key_vars_renamed,show_pct = TRUE) +
+  theme(text = element_text(size = 16)) # plot of missingness
+miss_var_summary(key_vars_renamed) %>% knitr::kable(digits=1) # table of missing percentages
 
 # descriptive analysis: table 1 ------------------------------------------------
 
@@ -44,9 +59,16 @@ consults %>%
   print(n = 35)
 
 # descriptive analysis: table 2 ------------------------------------------------
-
-###Alison's code###
-
+tbl2 <- consults %>% group_by(`Ethics Issue`) %>%
+  summarise(total=n(), prop=100*total/329,
+             mean_time=mean(total_time_minutes))
+tbl2 <- tbl2 %>% arrange(desc(total))
+tbl2 %>% knitr::kable(digits=0,align="l", col.names = c("Primary ethical issue",
+                                              "Total # of consultations",
+                                              "Percentage of overall consultations",
+                                              "Mean time spent (in minutes)")) %>%
+  kableExtra::column_spec(1,width="2in") %>%
+  kableExtra::column_spec(2:4,width="1in")
 
 # descriptive analysis: top five ethics issues ---------------------------------
 
@@ -286,13 +308,29 @@ pred_prob_logistic <- predict(glmm.fit.comp,
 
 # figure 5: primary results-----------------------------------------------------
 
-###Alison's code###
+combo <- cbind(obs_completion1[,1:2],pred_prob_simple, pred_prob)
+combo_long <- reshape(combo, direction="long", idvar="lead_consultant",
+                      varying=list(2:4))
 
+ggplot(combo_long,aes(x=time,y=complete,col=lead_consultant,label=lead_consultant)) +
+  ylab("Proportion Complete") +
+  geom_point(shape=1) +
+  ylim(0,1) +
+  scale_x_discrete(limits=factor(c(1,2,3)),
+                   labels=c("Observed","Predicted","Predicted with adjustment"), name=NULL) +
+  geom_line() +
+  labs(col="Lead Consultant")
 
 # table 3: primary results with prediction intervals----------------------------
 
-###Alison's code###
-
+tbl3 <- cbind(combo$lead_consultant,obs_completion1$n,combo$complete,combo$pred_prob,PI$lwr,PI$upr) %>% as.data.frame() %>% arrange(desc(V3))
+knitr::kable(tbl3, col.names=c("Lead Consultant",
+                               "Total Number of Consultations",
+                               "Observed Proportion Complete",
+                               "Predicted Adjusted Proportion Complete",
+                               "95% CI Lower", "95% CI Upper"),
+             digits=2,align="l") %>%
+  kableExtra::column_spec(1:6,width=".8in")
 
 # secondary analysis------------------------------------------------------------
 
